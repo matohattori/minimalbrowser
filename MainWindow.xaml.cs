@@ -202,9 +202,13 @@ namespace StickyMiniWeb
                     path.Data = Geometry.Parse(hide ? "M7 14l5-5 5 5z" : "M7 10l5 5 5-5z");
                 }
             }
-            catch
+            catch (FormatException)
             {
-                // Ignore icon update errors
+                // Invalid geometry data format, ignore
+            }
+            catch (InvalidOperationException)
+            {
+                // Unable to access visual tree, ignore
             }
         }
 
@@ -219,7 +223,7 @@ namespace StickyMiniWeb
             {
                 var child = VisualTreeHelper.GetChild(parent, i);
                 
-                if (child is T typedChild && (child as FrameworkElement)?.Name == name)
+                if (child is T typedChild && child is FrameworkElement fe && fe.Name == name)
                 {
                     return typedChild;
                 }
