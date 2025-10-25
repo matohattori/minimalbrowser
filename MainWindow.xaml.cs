@@ -155,7 +155,7 @@ namespace StickyMiniWeb
                 ApplyBackgroundColor();
                 if (hideContent)
                 {
-                    HideContentToggle_Click(HideContentToggle, new RoutedEventArgs());
+                    UpdateContentVisibility();
                 }
             }
             catch
@@ -185,15 +185,53 @@ namespace StickyMiniWeb
 
         private void HideContentToggle_Click(object sender, RoutedEventArgs e)
         {
+            UpdateContentVisibility();
+        }
+
+        private void UpdateContentVisibility()
+        {
             bool hide = HideContentToggle.IsChecked == true;
             ContentArea.Visibility = hide ? Visibility.Collapsed : Visibility.Visible;
             
             // Update icon to show chevron up when content is hidden, chevron down when visible
-            var iconPath = (Path)HideContentToggle.FindName("HideContentIcon");
-            if (iconPath != null)
+            try
             {
-                iconPath.Data = Geometry.Parse(hide ? "M7 14l5-5 5 5z" : "M7 10l5 5 5-5z");
+                var path = FindVisualChild<Path>(HideContentToggle, "HideContentIcon");
+                if (path != null)
+                {
+                    path.Data = Geometry.Parse(hide ? "M7 14l5-5 5 5z" : "M7 10l5 5 5-5z");
+                }
             }
+            catch
+            {
+                // Ignore icon update errors
+            }
+        }
+
+        private static T? FindVisualChild<T>(DependencyObject parent, string name) where T : DependencyObject
+        {
+            if (parent == null)
+            {
+                return null;
+            }
+
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                
+                if (child is T typedChild && (child as FrameworkElement)?.Name == name)
+                {
+                    return typedChild;
+                }
+
+                var result = FindVisualChild<T>(child, name);
+                if (result != null)
+                {
+                    return result;
+                }
+            }
+
+            return null;
         }
 
         private void BackgroundColorBox_LostFocus(object sender, RoutedEventArgs e)
@@ -217,7 +255,13 @@ namespace StickyMiniWeb
                     colorText = "#" + colorText;
                 }
 
-                var color = (Color)ColorConverter.ConvertFromString(colorText);
+                var colorObj = ColorConverter.ConvertFromString(colorText);
+                if (colorObj == null)
+                {
+                    return;
+                }
+
+                var color = (Color)colorObj;
                 ContentArea.Background = new SolidColorBrush(color);
             }
             catch
