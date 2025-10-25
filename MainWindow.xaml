@@ -17,36 +17,129 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-    <wv2:WebView2 x:Name="Web" Grid.Row="0" />
-    <Grid Grid.Row="1" VerticalAlignment="Bottom" Margin="0,6,0,0" Background="#AAFFFFFF">
+
+        <Grid Grid.Row="0">
+            <wv2:WebView2 x:Name="Web" />
+        </Grid>
+
+        <Grid Grid.Row="1" VerticalAlignment="Bottom" Margin="0,6,0,0" Background="#AAFFFFFF">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <ToggleButton x:Name="ShowSettingsButton" Grid.Column="0" Width="24" Height="24" Margin="0,0,6,0" Click="ShowSettingsButton_Click" BorderThickness="0" Background="Transparent" BorderBrush="Transparent">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <ToggleButton x:Name="ShowSettingsButton"
+                          Grid.Column="0"
+                          Width="24"
+                          Height="24"
+                          Margin="0,0,6,0"
+                          Click="ShowSettingsButton_Click"
+                          BorderThickness="0"
+                          Background="Transparent"
+                          BorderBrush="Transparent">
                 <Viewbox Width="16" Height="16">
                     <Canvas Width="24" Height="24">
                         <Path Fill="Gray" Data="M19.43 12.98c.04-.32.07-.65.07-.98s-.03-.66-.07-.98l2.11-1.65a.5.5 0 0 0 .12-.65l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.03 7.03 0 0 0-1.69-.98l-.38-2.65A.488.488 0 0 0 14 2h-4a.5.5 0 0 0-.5.42l-.38 2.65c-.63.27-1.22.61-1.77 1.01l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.65l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65a.5.5 0 0 0-.12.65l2 3.46c.14.24.44.33.68.22l2.49-1c.54.4 1.13.74 1.77 1.01l.38 2.65c.05.28.27.48.5.48h4c.23 0 .45-.2.5-.48l.38-2.65c.63-.27 1.22-.61 1.77-1.01l2.49 1c.24.09.54.02.68-.22l2-3.46a.5.5 0 0 0-.12-.65l-2.11-1.65zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/>
                     </Canvas>
                 </Viewbox>
             </ToggleButton>
-            <TextBox x:Name="UrlBox" Grid.Column="1" Text="http://localhost:8000" MinWidth="60" VerticalAlignment="Center" KeyDown="UrlBox_KeyDown" Visibility="Collapsed" Margin="0,0,6,0" Background="Transparent" BorderThickness="0" />
-            <Button x:Name="OpenButton" Grid.Column="2" Width="28" Height="28" Margin="0,0,6,0" Click="Open_Click" Visibility="Collapsed" BorderThickness="0" Background="Transparent" ToolTip="リロード">
+
+            <TextBox x:Name="UrlBox"
+                     Grid.Column="1"
+                     Text="http://localhost:8000"
+                     MinWidth="60"
+                     VerticalAlignment="Center"
+                     KeyDown="UrlBox_KeyDown"
+                     Visibility="Collapsed"
+                     Margin="0,0,6,0"
+                     Background="Transparent"
+                     BorderThickness="0" />
+
+            <Button x:Name="OpenButton"
+                    Grid.Column="2"
+                    Width="28"
+                    Height="28"
+                    Margin="0,0,6,0"
+                    Click="Open_Click"
+                    Visibility="Collapsed"
+                    BorderThickness="0"
+                    Background="Transparent"
+                    ToolTip="Reload">
                 <Viewbox Width="16" Height="16">
                     <Canvas Width="24" Height="24">
-                        <!-- リロードアイコン -->
-                        <!-- 円矢印リロードアイコン -->
                         <Path Fill="Gray" Data="M12 4V1L7 6l5 5V7c3.31 0 6 2.69 6 6 0 3.31-2.69 6-6 6s-6-2.69-6-6h-2c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
                     </Canvas>
                 </Viewbox>
             </Button>
-            <ToggleButton x:Name="TopmostToggle" Grid.Column="3" Width="28" Height="28" Checked="TopmostToggle_Checked" Unchecked="TopmostToggle_Checked" Visibility="Collapsed" BorderThickness="0" Background="Transparent" ToolTip="最前面">
+
+            <ToggleButton x:Name="TopmostToggle"
+                          Grid.Column="3"
+                          Width="28"
+                          Height="28"
+                          Checked="TopmostToggle_Checked"
+                          Unchecked="TopmostToggle_Checked"
+                          Visibility="Collapsed"
+                          BorderThickness="0"
+                          Background="Transparent"
+                          ToolTip="Always on top">
                 <Viewbox Width="16" Height="16">
-                    <TextBlock Text="&#xE718;" FontFamily="Segoe Fluent Icons" Foreground="Gray" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    <TextBlock Text="&#xE718;"
+                               FontFamily="Segoe Fluent Icons"
+                               Foreground="Gray"
+                               VerticalAlignment="Center"
+                               HorizontalAlignment="Center"/>
                 </Viewbox>
             </ToggleButton>
+
+            <StackPanel x:Name="AutoRefreshPanel"
+                        Grid.Row="1"
+                        Grid.Column="1"
+                        Grid.ColumnSpan="3"
+                        Orientation="Horizontal"
+                        Visibility="Collapsed"
+                        Margin="0,6,0,6"
+                        VerticalAlignment="Center">
+                <ToggleButton x:Name="AutoRefreshToggle"
+                              Width="24"
+                              Height="24"
+                              Checked="AutoRefreshToggle_Checked"
+                              Unchecked="AutoRefreshToggle_Checked"
+                              BorderThickness="0"
+                              Background="Transparent"
+                              ToolTip="Auto refresh">
+                    <Viewbox Width="16" Height="16">
+                        <TextBlock Text="&#xE895;"
+                                   FontFamily="Segoe Fluent Icons"
+                                   Foreground="Gray"
+                                   VerticalAlignment="Center"
+                                   HorizontalAlignment="Center"/>
+                    </Viewbox>
+                </ToggleButton>
+                <TextBlock Text="Interval"
+                           VerticalAlignment="Center"
+                           Margin="6,0,6,0"
+                           Foreground="Gray"/>
+                <TextBox x:Name="AutoRefreshIntervalBox"
+                         Width="48"
+                         VerticalContentAlignment="Center"
+                         Text="30"
+                         BorderThickness="0,0,0,1"
+                         Background="Transparent"
+                         TextAlignment="Center"
+                         PreviewTextInput="AutoRefreshIntervalBox_PreviewTextInput"
+                         TextChanged="AutoRefreshIntervalBox_TextChanged"
+                         LostFocus="AutoRefreshIntervalBox_LostFocus"
+                         Margin="0,0,6,0"/>
+                <TextBlock Text="sec"
+                           VerticalAlignment="Center"
+                           Foreground="Gray"/>
+            </StackPanel>
         </Grid>
     </Grid>
 </Window>
