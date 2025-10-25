@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Web.WebView2.Core;
 
@@ -86,8 +87,10 @@ namespace StickyMiniWeb
                 var height = Height.ToString(CultureInfo.InvariantCulture);
                 var autoEnabled = AutoRefreshToggle.IsChecked == true ? "1" : "0";
                 var interval = GetIntervalSeconds().ToString(CultureInfo.InvariantCulture);
+                var backgroundColor = BackgroundColorBox.Text.Trim();
+                var hideContent = HideContentToggle.IsChecked == true ? "1" : "0";
 
-                File.WriteAllText(path, $"{url}\n{width}\n{height}\n{autoEnabled}\n{interval}");
+                File.WriteAllText(path, $"{url}\n{width}\n{height}\n{autoEnabled}\n{interval}\n{backgroundColor}\n{hideContent}");
             }
             catch
             {
@@ -105,6 +108,8 @@ namespace StickyMiniWeb
                 double height = 420;
                 bool autoRefreshEnabled = false;
                 int intervalSeconds = DefaultAutoRefreshIntervalSeconds;
+                string backgroundColor = "#FFFFFF";
+                bool hideContent = false;
 
                 if (File.Exists(path))
                 {
@@ -129,6 +134,14 @@ namespace StickyMiniWeb
                     {
                         intervalSeconds = Math.Max(MinimumAutoRefreshIntervalSeconds, savedInterval);
                     }
+                    if (lines.Length > 5 && !string.IsNullOrWhiteSpace(lines[5]))
+                    {
+                        backgroundColor = lines[5].Trim();
+                    }
+                    if (lines.Length > 6)
+                    {
+                        hideContent = lines[6].Trim() == "1";
+                    }
                 }
 
                 UrlBox.Text = url;
@@ -136,6 +149,14 @@ namespace StickyMiniWeb
                 Height = height;
                 AutoRefreshIntervalBox.Text = intervalSeconds.ToString(CultureInfo.InvariantCulture);
                 AutoRefreshToggle.IsChecked = autoRefreshEnabled;
+                BackgroundColorBox.Text = backgroundColor;
+                HideContentToggle.IsChecked = hideContent;
+                
+                ApplyBackgroundColor();
+                if (hideContent)
+                {
+                    HideContentToggle_Click(HideContentToggle, new RoutedEventArgs());
+                }
             }
             catch
             {
@@ -144,6 +165,8 @@ namespace StickyMiniWeb
                 Height = 420;
                 AutoRefreshIntervalBox.Text = DefaultAutoRefreshIntervalSeconds.ToString(CultureInfo.InvariantCulture);
                 AutoRefreshToggle.IsChecked = false;
+                BackgroundColorBox.Text = "#FFFFFF";
+                HideContentToggle.IsChecked = false;
             }
         }
 
@@ -156,7 +179,51 @@ namespace StickyMiniWeb
             OpenButton.Visibility = visibility;
             TopmostToggle.Visibility = visibility;
             AutoRefreshPanel.Visibility = visibility;
+            BackgroundColorPanel.Visibility = visibility;
             ShowSettingsButton.Background = show ? System.Windows.Media.Brushes.DodgerBlue : System.Windows.Media.Brushes.Transparent;
+        }
+
+        private void HideContentToggle_Click(object sender, RoutedEventArgs e)
+        {
+            bool hide = HideContentToggle.IsChecked == true;
+            ContentArea.Visibility = hide ? Visibility.Collapsed : Visibility.Visible;
+            
+            // Update icon to show chevron up when content is hidden, chevron down when visible
+            var iconPath = (Path)HideContentToggle.FindName("HideContentIcon");
+            if (iconPath != null)
+            {
+                iconPath.Data = Geometry.Parse(hide ? "M7 14l5-5 5 5z" : "M7 10l5 5 5-5z");
+            }
+        }
+
+        private void BackgroundColorBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            ApplyBackgroundColor();
+        }
+
+        private void ApplyBackgroundColor()
+        {
+            try
+            {
+                var colorText = BackgroundColorBox.Text.Trim();
+                if (string.IsNullOrEmpty(colorText))
+                {
+                    return;
+                }
+
+                // Ensure it starts with #
+                if (!colorText.StartsWith("#"))
+                {
+                    colorText = "#" + colorText;
+                }
+
+                var color = (Color)ColorConverter.ConvertFromString(colorText);
+                ContentArea.Background = new SolidColorBrush(color);
+            }
+            catch
+            {
+                // Invalid color, ignore
+            }
         }
 
         private void Open_Click(object sender, RoutedEventArgs e)

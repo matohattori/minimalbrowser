@@ -16,13 +16,30 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0">
+        <Grid Grid.Row="0" x:Name="ContentArea">
             <wv2:WebView2 x:Name="Web" />
         </Grid>
 
-        <Grid Grid.Row="1" VerticalAlignment="Bottom" Margin="0,6,0,0" Background="#AAFFFFFF">
+        <ToggleButton x:Name="HideContentToggle"
+                      Grid.Row="1"
+                      Height="16"
+                      Margin="0,6,0,0"
+                      Click="HideContentToggle_Click"
+                      BorderThickness="0"
+                      Background="Transparent"
+                      BorderBrush="Transparent"
+                      ToolTip="Hide/Show content">
+            <Viewbox Width="12" Height="8">
+                <Canvas Width="24" Height="24">
+                    <Path x:Name="HideContentIcon" Fill="Gray" Data="M7 10l5 5 5-5z"/>
+                </Canvas>
+            </Viewbox>
+        </ToggleButton>
+
+        <Grid Grid.Row="2" x:Name="TaskbarArea" VerticalAlignment="Bottom" Margin="0,6,0,0" Background="#AAFFFFFF">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
@@ -30,6 +47,7 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
@@ -139,6 +157,29 @@
                 <TextBlock Text="sec"
                            VerticalAlignment="Center"
                            Foreground="Gray"/>
+            </StackPanel>
+
+            <StackPanel x:Name="BackgroundColorPanel"
+                        Grid.Row="2"
+                        Grid.Column="1"
+                        Grid.ColumnSpan="3"
+                        Orientation="Horizontal"
+                        Visibility="Collapsed"
+                        Margin="0,0,0,6"
+                        VerticalAlignment="Center">
+                <TextBlock Text="Background"
+                           VerticalAlignment="Center"
+                           Margin="0,0,6,0"
+                           Foreground="Gray"/>
+                <TextBox x:Name="BackgroundColorBox"
+                         Width="80"
+                         VerticalContentAlignment="Center"
+                         Text="#FFFFFF"
+                         BorderThickness="0,0,0,1"
+                         Background="Transparent"
+                         TextAlignment="Center"
+                         LostFocus="BackgroundColorBox_LostFocus"
+                         Margin="0,0,6,0"/>
             </StackPanel>
         </Grid>
     </Grid>
