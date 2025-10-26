@@ -29,6 +29,7 @@ namespace StickyMiniWeb
         private bool _suppressBackgroundTextUpdate;
         private double _previousWindowHeight = double.NaN;
         private double _previousMinHeight;
+        private double _previousMaxHeight = double.PositiveInfinity;
         private Color _currentBackgroundColor = Colors.White;
 
         public MainWindow()
@@ -123,13 +124,18 @@ namespace StickyMiniWeb
             _suppressTaskbarToggleHandler = true;
             TaskbarModeToggle.IsChecked = enable;
             _suppressTaskbarToggleHandler = false;
+
+            if (TaskbarModeIcon != null)
+            {
+                TaskbarModeIcon.Text = enable ? "\uE96E" : "\uE96D";
+            }
         }
 
         private void UpdateTaskbarToggleHeight()
         {
             if (TaskbarModeToggle == null) return;
             var resolved = Math.Max(FontSize * 0.6, 14);
-            TaskbarModeToggle.Height = resolved;
+            TaskbarModeToggle.Height = resolved * 1.15;
         }
 
         private void SetTaskbarOnlyMode(bool enable)
@@ -145,6 +151,7 @@ namespace StickyMiniWeb
             {
                 _previousWindowHeight = Height;
                 _previousMinHeight = MinHeight;
+                _previousMaxHeight = MaxHeight;
                 _settingsVisibleBeforeCompact = AreSettingsVisible;
                 SetSettingsVisibility(false);
                 ShowSettingsButton.IsEnabled = false;
@@ -158,12 +165,25 @@ namespace StickyMiniWeb
                     Web.Visibility = Visibility.Collapsed;
                 }
 
-                var toggleHeight = TaskbarModeToggle?.ActualHeight ?? 20;
-                var margin = LayoutRoot?.Margin ?? new Thickness(0);
-                var targetHeight = toggleHeight + margin.Top + margin.Bottom + 12;
+                var toggleHeight = TaskbarModeToggle?.ActualHeight ?? 0;
+                if (toggleHeight <= 0)
+                {
+                    toggleHeight = Math.Max(TaskbarModeToggle?.MinHeight ?? 0, FontSize * 0.6) * 1.2;
+                }
+                var toggleMargin = TaskbarModeToggle?.Margin ?? new Thickness(0);
+                var layoutMargin = LayoutRoot?.Margin ?? new Thickness(0);
+                var chromeHeight = SystemParameters.WindowCaptionHeight
+                                   + SystemParameters.WindowResizeBorderThickness.Top
+                                   + SystemParameters.WindowResizeBorderThickness.Bottom;
+                var targetHeight = toggleHeight
+                    + toggleMargin.Top + toggleMargin.Bottom
+                    + layoutMargin.Top + layoutMargin.Bottom
+                    + chromeHeight;
+                targetHeight *= 1.2;
                 if (targetHeight < 60) targetHeight = 60;
 
                 MinHeight = targetHeight;
+                MaxHeight = targetHeight;
                 Height = targetHeight;
 
                 if (ToolbarRow != null)
@@ -189,6 +209,7 @@ namespace StickyMiniWeb
                 }
 
                 MinHeight = _previousMinHeight > 0 ? _previousMinHeight : 280;
+                MaxHeight = double.IsPositiveInfinity(_previousMaxHeight) ? double.PositiveInfinity : _previousMaxHeight;
                 if (!double.IsNaN(_previousWindowHeight) && _previousWindowHeight > 0)
                 {
                     Height = Math.Max(_previousWindowHeight, MinHeight);
@@ -451,12 +472,6 @@ namespace StickyMiniWeb
             {
                 var toolbarColor = Color.FromArgb(210, color.R, color.G, color.B);
                 ToolbarPanel.Background = new SolidColorBrush(toolbarColor);
-            }
-
-            if (TaskbarModeToggle != null)
-            {
-                TaskbarModeToggle.Background = brush;
-                TaskbarModeToggle.Foreground = color.GetLuminance() < 0.5 ? Brushes.White : Brushes.Black;
             }
 
             UpdateBackgroundColorText(color);
