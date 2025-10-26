@@ -12,17 +12,65 @@
     Topmost="True"
     Closing="Window_Closing">
 
-    <Grid Margin="6">
+    <Grid x:Name="LayoutRoot" Margin="8">
         <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition x:Name="TaskbarToggleRow" Height="Auto"/>
+            <RowDefinition x:Name="ContentRow" Height="*"/>
+            <RowDefinition x:Name="ToolbarRow" Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0">
+        <ToggleButton x:Name="TaskbarModeToggle"
+                      Grid.Row="0"
+                      MinHeight="14"
+                      Margin="0,0,0,0"
+                      Background="#F5F5F5"
+                      HorizontalAlignment="Stretch"
+                      Checked="TaskbarModeToggle_Checked"
+                      Unchecked="TaskbarModeToggle_Unchecked"
+                      ToolTip="Taskbar-only mode">
+            <ToggleButton.Style>
+                <Style TargetType="ToggleButton">
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ToggleButton">
+                                <Border x:Name="Border"
+                                        Background="{TemplateBinding Background}"
+                                        CornerRadius="6"
+                                        Padding="2">
+                                    <ContentPresenter HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Border" Property="Background" Value="#E0E0E0"/>
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="Border" Property="Background" Value="#D0D0D0"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ToggleButton.Style>
+            <Viewbox Width="18" Height="18" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock x:Name="TaskbarModeIcon"
+                           Text="&#xE96D;"
+                           FontFamily="Segoe Fluent Icons"
+                           Foreground="#4A4A4A"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"/>
+            </Viewbox>
+        </ToggleButton>
+
+        <Grid Grid.Row="1">
             <wv2:WebView2 x:Name="Web" />
         </Grid>
 
-        <Grid Grid.Row="1" VerticalAlignment="Bottom" Margin="0,6,0,0" Background="#AAFFFFFF">
+        <Grid x:Name="ToolbarPanel"
+              Grid.Row="2"
+              Margin="0,2,0,0"
+              Background="#AAFFFFFF">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
@@ -30,6 +78,7 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
@@ -99,9 +148,10 @@
 
             <StackPanel x:Name="AutoRefreshPanel"
                         Grid.Row="1"
-                        Grid.Column="1"
-                        Grid.ColumnSpan="3"
+                        Grid.Column="0"
+                        Grid.ColumnSpan="4"
                         Orientation="Horizontal"
+                        HorizontalAlignment="Left"
                         Visibility="Collapsed"
                         Margin="0,6,0,6"
                         VerticalAlignment="Center">
@@ -140,6 +190,31 @@
                            VerticalAlignment="Center"
                            Foreground="Gray"/>
             </StackPanel>
+
+            <StackPanel x:Name="BackgroundColorPanel"
+                        Grid.Row="2"
+                        Grid.Column="0"
+                        Grid.ColumnSpan="4"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Left"
+                        Visibility="Collapsed"
+                        Margin="0,0,0,6"
+                        VerticalAlignment="Center">
+                <TextBlock Text="Background HEX"
+                           VerticalAlignment="Center"
+                           Margin="0,0,6,0"
+                           Foreground="Gray"/>
+                <TextBox x:Name="BackgroundColorBox"
+                         Width="80"
+                         VerticalContentAlignment="Center"
+                         Text="FFFFFF"
+                         BorderThickness="0,0,0,1"
+                         Background="Transparent"
+                         TextAlignment="Center"
+                         KeyDown="BackgroundColorBox_KeyDown"
+                         LostFocus="BackgroundColorBox_LostFocus"/>
+            </StackPanel>
         </Grid>
+
     </Grid>
 </Window>
