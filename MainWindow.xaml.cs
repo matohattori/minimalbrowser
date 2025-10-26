@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Web.WebView2.Core;
 
@@ -16,22 +17,32 @@ namespace StickyMiniWeb
     {
         private const int DefaultAutoRefreshIntervalSeconds = 30;
         private const int MinimumAutoRefreshIntervalSeconds = 5;
+        private const string DefaultBackgroundHex = "FFFFFF";
 
         private DispatcherTimer? _autoRefreshTimer;
         private CancellationTokenSource? _autoRefreshCts;
         private bool _autoRefreshInFlight;
 
+        private bool _isTaskbarOnlyMode;
+        private bool _settingsVisibleBeforeCompact;
+        private bool _suppressTaskbarToggleHandler;
+        private bool _suppressBackgroundTextUpdate;
+        private double _previousWindowHeight = double.NaN;
+        private double _previousMinHeight;
+        private Color _currentBackgroundColor = Colors.White;
+
         public MainWindow()
         {
             InitializeComponent();
             Loaded += OnLoaded;
+            SizeChanged += (_, _) => UpdateTaskbarToggleHeight();
         }
 
         private async void OnLoaded(object sender, RoutedEventArgs e)
         {
             try
             {
-                LoadLastUrlAndSize();
+                LoadLastState();
 
                 await Web.EnsureCoreWebView2Async();
                 Web.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
@@ -39,6 +50,9 @@ namespace StickyMiniWeb
                 Web.CoreWebView2.DocumentTitleChanged += CoreWebView2_DocumentTitleChanged;
 
                 NavigateToUrl(UrlBox.Text);
+
+                UpdateTaskbarToggleHeight();
+                UpdateTaskbarModeToggle(_isTaskbarOnlyMode);
             }
             catch (Exception ex)
             {
@@ -48,9 +62,9 @@ namespace StickyMiniWeb
 
         private void CoreWebView2_DocumentTitleChanged(object? sender, object? e)
         {
-            if (Web?.CoreWebView2?.DocumentTitle != null)
+            if (!string.IsNullOrEmpty(Web?.CoreWebView2?.DocumentTitle))
             {
-                Title = Web.CoreWebView2.DocumentTitle;
+                Title = Web!.CoreWebView2!.DocumentTitle;
             }
         }
 
@@ -65,98 +79,139 @@ namespace StickyMiniWeb
 
         private void Window_Closing(object? sender, CancelEventArgs e)
         {
-            SaveLastUrlAndSize();
+            SaveCurrentState();
             StopAutoRefresh();
-        }
-
-        private string GetSettingsFilePath()
-        {
-            var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "StickyMiniWeb");
-            Directory.CreateDirectory(dir);
-            return Path.Combine(dir, "settings.txt");
-        }
-
-        private void SaveLastUrlAndSize()
-        {
-            try
-            {
-                var path = GetSettingsFilePath();
-                var url = NormalizeUrl(UrlBox.Text);
-                var width = Width.ToString(CultureInfo.InvariantCulture);
-                var height = Height.ToString(CultureInfo.InvariantCulture);
-                var autoEnabled = AutoRefreshToggle.IsChecked == true ? "1" : "0";
-                var interval = GetIntervalSeconds().ToString(CultureInfo.InvariantCulture);
-
-                File.WriteAllText(path, $"{url}\n{width}\n{height}\n{autoEnabled}\n{interval}");
-            }
-            catch
-            {
-                // ignore save errors
-            }
-        }
-
-        private void LoadLastUrlAndSize()
-        {
-            try
-            {
-                var path = GetSettingsFilePath();
-                string url = "http://localhost:8000";
-                double width = 320;
-                double height = 420;
-                bool autoRefreshEnabled = false;
-                int intervalSeconds = DefaultAutoRefreshIntervalSeconds;
-
-                if (File.Exists(path))
-                {
-                    var lines = File.ReadAllLines(path);
-                    if (lines.Length > 0 && !string.IsNullOrWhiteSpace(lines[0]))
-                    {
-                        url = NormalizeUrl(lines[0]);
-                    }
-                    if (lines.Length > 1 && double.TryParse(lines[1], NumberStyles.Any, CultureInfo.InvariantCulture, out var w))
-                    {
-                        width = w;
-                    }
-                    if (lines.Length > 2 && double.TryParse(lines[2], NumberStyles.Any, CultureInfo.InvariantCulture, out var h))
-                    {
-                        height = h;
-                    }
-                    if (lines.Length > 3)
-                    {
-                        autoRefreshEnabled = lines[3].Trim() == "1";
-                    }
-                    if (lines.Length > 4 && int.TryParse(lines[4], out var savedInterval))
-                    {
-                        intervalSeconds = Math.Max(MinimumAutoRefreshIntervalSeconds, savedInterval);
-                    }
-                }
-
-                UrlBox.Text = url;
-                Width = width;
-                Height = height;
-                AutoRefreshIntervalBox.Text = intervalSeconds.ToString(CultureInfo.InvariantCulture);
-                AutoRefreshToggle.IsChecked = autoRefreshEnabled;
-            }
-            catch
-            {
-                UrlBox.Text = "http://localhost:8000";
-                Width = 320;
-                Height = 420;
-                AutoRefreshIntervalBox.Text = DefaultAutoRefreshIntervalSeconds.ToString(CultureInfo.InvariantCulture);
-                AutoRefreshToggle.IsChecked = false;
-            }
         }
 
         private void ShowSettingsButton_Click(object sender, RoutedEventArgs e)
         {
-            bool show = UrlBox.Visibility != Visibility.Visible;
+            SetSettingsVisibility(!AreSettingsVisible);
+        }
+
+        private bool AreSettingsVisible => UrlBox != null && UrlBox.Visibility == Visibility.Visible;
+
+        private void SetSettingsVisibility(bool show)
+        {
+            if (UrlBox == null) return;
+
             var visibility = show ? Visibility.Visible : Visibility.Collapsed;
 
             UrlBox.Visibility = visibility;
             OpenButton.Visibility = visibility;
             TopmostToggle.Visibility = visibility;
             AutoRefreshPanel.Visibility = visibility;
-            ShowSettingsButton.Background = show ? System.Windows.Media.Brushes.DodgerBlue : System.Windows.Media.Brushes.Transparent;
+            BackgroundColorPanel.Visibility = visibility;
+            ShowSettingsButton.IsChecked = show;
+            ShowSettingsButton.Background = show ? Brushes.DodgerBlue : Brushes.Transparent;
+        }
+
+        private void TaskbarModeToggle_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_suppressTaskbarToggleHandler) return;
+            SetTaskbarOnlyMode(true);
+        }
+
+        private void TaskbarModeToggle_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (_suppressTaskbarToggleHandler) return;
+            SetTaskbarOnlyMode(false);
+        }
+
+        private void UpdateTaskbarModeToggle(bool enable)
+        {
+            if (TaskbarModeToggle == null) return;
+            _suppressTaskbarToggleHandler = true;
+            TaskbarModeToggle.IsChecked = enable;
+            _suppressTaskbarToggleHandler = false;
+        }
+
+        private void UpdateTaskbarToggleHeight()
+        {
+            if (TaskbarModeToggle == null) return;
+            var resolved = Math.Max(FontSize * 0.6, 14);
+            TaskbarModeToggle.Height = resolved;
+        }
+
+        private void SetTaskbarOnlyMode(bool enable)
+        {
+            UpdateTaskbarModeToggle(enable);
+
+            if (_isTaskbarOnlyMode == enable)
+            {
+                return;
+            }
+
+            if (enable)
+            {
+                _previousWindowHeight = Height;
+                _previousMinHeight = MinHeight;
+                _settingsVisibleBeforeCompact = AreSettingsVisible;
+                SetSettingsVisibility(false);
+                ShowSettingsButton.IsEnabled = false;
+
+                if (ContentRow != null)
+                {
+                    ContentRow.Height = new GridLength(0);
+                }
+                if (Web != null)
+                {
+                    Web.Visibility = Visibility.Collapsed;
+                }
+
+                var toggleHeight = TaskbarModeToggle?.ActualHeight ?? 20;
+                var margin = LayoutRoot?.Margin ?? new Thickness(0);
+                var targetHeight = toggleHeight + margin.Top + margin.Bottom + 12;
+                if (targetHeight < 60) targetHeight = 60;
+
+                MinHeight = targetHeight;
+                Height = targetHeight;
+
+                if (ToolbarRow != null)
+                {
+                    ToolbarRow.Height = new GridLength(0);
+                }
+                if (ToolbarPanel != null)
+                {
+                    ToolbarPanel.Visibility = Visibility.Collapsed;
+                }
+
+                _isTaskbarOnlyMode = true;
+            }
+            else
+            {
+                if (ContentRow != null)
+                {
+                    ContentRow.Height = new GridLength(1, GridUnitType.Star);
+                }
+                if (Web != null)
+                {
+                    Web.Visibility = Visibility.Visible;
+                }
+
+                MinHeight = _previousMinHeight > 0 ? _previousMinHeight : 280;
+                if (!double.IsNaN(_previousWindowHeight) && _previousWindowHeight > 0)
+                {
+                    Height = Math.Max(_previousWindowHeight, MinHeight);
+                }
+                else
+                {
+                    Height = Math.Max(Height, MinHeight);
+                }
+
+                if (ToolbarRow != null)
+                {
+                    ToolbarRow.Height = GridLength.Auto;
+                }
+                if (ToolbarPanel != null)
+                {
+                    ToolbarPanel.Visibility = Visibility.Visible;
+                }
+
+                ShowSettingsButton.IsEnabled = true;
+                SetSettingsVisibility(_settingsVisibleBeforeCompact);
+
+                _isTaskbarOnlyMode = false;
+            }
         }
 
         private void Open_Click(object sender, RoutedEventArgs e)
@@ -358,6 +413,111 @@ namespace StickyMiniWeb
             }
         }
 
+        private void BackgroundColorBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                ApplyBackgroundColorFromInput();
+                e.Handled = true;
+            }
+        }
+
+        private void BackgroundColorBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            ApplyBackgroundColorFromInput();
+        }
+
+        private void ApplyBackgroundColorFromInput()
+        {
+            var text = NormalizeHexColorText(BackgroundColorBox?.Text);
+            ApplyBackgroundColor(text);
+        }
+
+        private void ApplyBackgroundColor(string hex)
+        {
+            if (!TryParseHexColor(hex, out var color))
+            {
+                UpdateBackgroundColorText(_currentBackgroundColor);
+                return;
+            }
+
+            _currentBackgroundColor = color;
+
+            var brush = new SolidColorBrush(color);
+            LayoutRoot.Background = brush;
+            Background = brush;
+
+            if (ToolbarPanel != null)
+            {
+                var toolbarColor = Color.FromArgb(210, color.R, color.G, color.B);
+                ToolbarPanel.Background = new SolidColorBrush(toolbarColor);
+            }
+
+            if (TaskbarModeToggle != null)
+            {
+                TaskbarModeToggle.Background = brush;
+                TaskbarModeToggle.Foreground = color.GetLuminance() < 0.5 ? Brushes.White : Brushes.Black;
+            }
+
+            UpdateBackgroundColorText(color);
+        }
+
+        private void UpdateBackgroundColorText(Color color)
+        {
+            if (BackgroundColorBox == null || _suppressBackgroundTextUpdate) return;
+
+            _suppressBackgroundTextUpdate = true;
+            BackgroundColorBox.Text = $"{color.R:X2}{color.G:X2}{color.B:X2}";
+            _suppressBackgroundTextUpdate = false;
+        }
+
+        private static bool TryParseHexColor(string text, out Color color)
+        {
+            color = Colors.White;
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return false;
+            }
+
+            var span = text.Trim();
+            if (span.StartsWith("#", StringComparison.Ordinal))
+            {
+                span = span[1..];
+            }
+
+            if (span.Length != 6 || !int.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var value))
+            {
+                return false;
+            }
+
+            byte r = (byte)((value >> 16) & 0xFF);
+            byte g = (byte)((value >> 8) & 0xFF);
+            byte b = (byte)(value & 0xFF);
+            color = Color.FromRgb(r, g, b);
+            return true;
+        }
+
+        private static string NormalizeHexColorText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return DefaultBackgroundHex;
+            }
+
+            var span = text.Trim();
+            if (span.StartsWith("#", StringComparison.Ordinal))
+            {
+                span = span[1..];
+            }
+
+            if (span.Length != 6 || !int.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out _))
+            {
+                return DefaultBackgroundHex;
+            }
+
+            return span.ToUpperInvariant();
+        }
+
         private void ApplyAutoRefreshIntervalText()
         {
             var seconds = GetIntervalSeconds();
@@ -372,6 +532,94 @@ namespace StickyMiniWeb
             }
 
             return DefaultAutoRefreshIntervalSeconds;
+        }
+
+        private void SaveCurrentState()
+        {
+            try
+            {
+                var path = GetSettingsFilePath();
+                var url = NormalizeUrl(UrlBox.Text);
+                var width = Width.ToString(CultureInfo.InvariantCulture);
+                var height = Height.ToString(CultureInfo.InvariantCulture);
+                var autoEnabled = AutoRefreshToggle.IsChecked == true ? "1" : "0";
+                var interval = GetIntervalSeconds().ToString(CultureInfo.InvariantCulture);
+                var background = NormalizeHexColorText(BackgroundColorBox?.Text);
+
+                File.WriteAllText(path, $"{url}\n{width}\n{height}\n{autoEnabled}\n{interval}\n{background}");
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+        private void LoadLastState()
+        {
+            try
+            {
+                var path = GetSettingsFilePath();
+                string url = "http://localhost:8000";
+                double width = 320;
+                double height = 420;
+                bool autoRefreshEnabled = false;
+                int intervalSeconds = DefaultAutoRefreshIntervalSeconds;
+                string backgroundText = DefaultBackgroundHex;
+
+                if (File.Exists(path))
+                {
+                    var lines = File.ReadAllLines(path);
+                    if (lines.Length > 0 && !string.IsNullOrWhiteSpace(lines[0]))
+                    {
+                        url = NormalizeUrl(lines[0]);
+                    }
+                    if (lines.Length > 1 && double.TryParse(lines[1], NumberStyles.Any, CultureInfo.InvariantCulture, out var w))
+                    {
+                        width = w;
+                    }
+                    if (lines.Length > 2 && double.TryParse(lines[2], NumberStyles.Any, CultureInfo.InvariantCulture, out var h))
+                    {
+                        height = h;
+                    }
+                    if (lines.Length > 3)
+                    {
+                        autoRefreshEnabled = lines[3].Trim() == "1";
+                    }
+                    if (lines.Length > 4 && int.TryParse(lines[4], out var savedInterval))
+                    {
+                        intervalSeconds = Math.Max(MinimumAutoRefreshIntervalSeconds, savedInterval);
+                    }
+                    if (lines.Length > 5 && !string.IsNullOrWhiteSpace(lines[5]))
+                    {
+                        backgroundText = NormalizeHexColorText(lines[5]);
+                    }
+                }
+
+                UrlBox.Text = url;
+                Width = width;
+                Height = height;
+                AutoRefreshIntervalBox.Text = intervalSeconds.ToString(CultureInfo.InvariantCulture);
+                AutoRefreshToggle.IsChecked = autoRefreshEnabled;
+                BackgroundColorBox.Text = backgroundText;
+                ApplyBackgroundColor(backgroundText);
+            }
+            catch
+            {
+                UrlBox.Text = "http://localhost:8000";
+                Width = 320;
+                Height = 420;
+                AutoRefreshIntervalBox.Text = DefaultAutoRefreshIntervalSeconds.ToString(CultureInfo.InvariantCulture);
+                AutoRefreshToggle.IsChecked = false;
+                BackgroundColorBox.Text = DefaultBackgroundHex;
+                ApplyBackgroundColor(DefaultBackgroundHex);
+            }
+        }
+
+        private string GetSettingsFilePath()
+        {
+            var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "StickyMiniWeb");
+            Directory.CreateDirectory(dir);
+            return Path.Combine(dir, "settings.txt");
         }
 
         private static string NormalizeUrl(string? urlText)
@@ -390,4 +638,13 @@ namespace StickyMiniWeb
             return trimmed;
         }
     }
+
+    internal static class ColorExtensions
+    {
+        public static double GetLuminance(this Color color)
+        {
+            return (0.299 * color.R + 0.587 * color.G + 0.114 * color.B) / 255d;
+        }
+    }
+
 }

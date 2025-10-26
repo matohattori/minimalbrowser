@@ -12,17 +12,38 @@
     Topmost="True"
     Closing="Window_Closing">
 
-    <Grid Margin="6">
+    <Grid x:Name="LayoutRoot" Margin="8">
         <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition x:Name="TaskbarToggleRow" Height="Auto"/>
+            <RowDefinition x:Name="ContentRow" Height="*"/>
+            <RowDefinition x:Name="ToolbarRow" Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0">
+        <ToggleButton x:Name="TaskbarModeToggle"
+                      Grid.Row="0"
+                      MinHeight="14"
+                      Margin="0,0,0,8"
+                      Background="#F0F0F0"
+                      BorderThickness="0"
+                      HorizontalAlignment="Stretch"
+                      Checked="TaskbarModeToggle_Checked"
+                      Unchecked="TaskbarModeToggle_Unchecked"
+                      ToolTip="Taskbar-only mode">
+            <Viewbox Width="18" Height="18" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Canvas Width="24" Height="24">
+                    <Path Fill="#4A4A4A" Data="M3 6h18v6H3zM6 13h12v2H6zM5 17h14v2H5z"/>
+                </Canvas>
+            </Viewbox>
+        </ToggleButton>
+
+        <Grid Grid.Row="1">
             <wv2:WebView2 x:Name="Web" />
         </Grid>
 
-        <Grid Grid.Row="1" VerticalAlignment="Bottom" Margin="0,6,0,0" Background="#AAFFFFFF">
+        <Grid x:Name="ToolbarPanel"
+              Grid.Row="2"
+              Margin="0,8,0,0"
+              Background="#AAFFFFFF">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
@@ -30,6 +51,7 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
@@ -99,9 +121,10 @@
 
             <StackPanel x:Name="AutoRefreshPanel"
                         Grid.Row="1"
-                        Grid.Column="1"
-                        Grid.ColumnSpan="3"
+                        Grid.Column="0"
+                        Grid.ColumnSpan="4"
                         Orientation="Horizontal"
+                        HorizontalAlignment="Left"
                         Visibility="Collapsed"
                         Margin="0,6,0,6"
                         VerticalAlignment="Center">
@@ -139,6 +162,30 @@
                 <TextBlock Text="sec"
                            VerticalAlignment="Center"
                            Foreground="Gray"/>
+            </StackPanel>
+
+            <StackPanel x:Name="BackgroundColorPanel"
+                        Grid.Row="2"
+                        Grid.Column="0"
+                        Grid.ColumnSpan="4"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Left"
+                        Visibility="Collapsed"
+                        Margin="0,0,0,6"
+                        VerticalAlignment="Center">
+                <TextBlock Text="Background HEX"
+                           VerticalAlignment="Center"
+                           Margin="0,0,6,0"
+                           Foreground="Gray"/>
+                <TextBox x:Name="BackgroundColorBox"
+                         Width="80"
+                         VerticalContentAlignment="Center"
+                         Text="FFFFFF"
+                         BorderThickness="0,0,0,1"
+                         Background="Transparent"
+                         TextAlignment="Center"
+                         KeyDown="BackgroundColorBox_KeyDown"
+                         LostFocus="BackgroundColorBox_LostFocus"/>
             </StackPanel>
         </Grid>
     </Grid>
