@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.Globalization;
 using System.IO;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -18,10 +19,58 @@ namespace StickyMiniWeb
         private const int DefaultAutoRefreshIntervalSeconds = 30;
         private const int MinimumAutoRefreshIntervalSeconds = 5;
         private const string DefaultBackgroundHex = "FFFFFF";
+        private const string TypingStateMessageType = "typing-state";
+        private static readonly string TypingStateMonitoringScript = @"
+(function () {
+    if (!window.chrome || !window.chrome.webview) {
+        return;
+    }
+    const send = (isTyping) => {
+        window.chrome.webview.postMessage({ type: 'typing-state', isTyping });
+    };
+    let lastValue = null;
+    const isTypingElement = (el) => {
+        if (!el) {
+            return false;
+        }
+        if (el.isContentEditable) {
+            return true;
+        }
+        if (!el.tagName) {
+            return false;
+        }
+        if (el.tagName === 'TEXTAREA') {
+            return true;
+        }
+        if (el.tagName !== 'INPUT') {
+            return false;
+        }
+        const inputType = (el.type || '').toLowerCase();
+        const nonTypingTypes = ['button', 'submit', 'reset', 'checkbox', 'radio', 'range', 'color', 'file'];
+        return !nonTypingTypes.includes(inputType);
+    };
+    const report = () => {
+        const typing = isTypingElement(document.activeElement);
+        if (typing !== lastValue) {
+            lastValue = typing;
+            send(typing);
+        }
+    };
+    document.addEventListener('focus', report, true);
+    document.addEventListener('blur', report, true);
+    document.addEventListener('input', report, true);
+    document.addEventListener('keydown', report, true);
+    document.addEventListener('keyup', report, true);
+    document.addEventListener('compositionstart', report, true);
+    document.addEventListener('compositionend', report, true);
+    report();
+})();
+";
 
         private DispatcherTimer? _autoRefreshTimer;
         private CancellationTokenSource? _autoRefreshCts;
         private bool _autoRefreshInFlight;
+        private bool _isTypingInWebView;
 
         private bool _isTaskbarOnlyMode;
         private bool _settingsVisibleBeforeCompact;
@@ -49,6 +98,8 @@ namespace StickyMiniWeb
                 Web.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
                 Web.CoreWebView2.Settings.IsStatusBarEnabled = false;
                 Web.CoreWebView2.DocumentTitleChanged += CoreWebView2_DocumentTitleChanged;
+                Web.CoreWebView2.WebMessageReceived += CoreWebView2_WebMessageReceived;
+                await Web.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(TypingStateMonitoringScript);
 
                 NavigateToUrl(UrlBox.Text);
 
@@ -66,6 +117,31 @@ namespace StickyMiniWeb
             if (!string.IsNullOrEmpty(Web?.CoreWebView2?.DocumentTitle))
             {
                 Title = Web!.CoreWebView2!.DocumentTitle;
+            }
+        }
+
+        private void CoreWebView2_WebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
+        {
+            var message = e.WebMessageAsJson;
+            if (string.IsNullOrEmpty(message))
+            {
+                return;
+            }
+
+            try
+            {
+                using var document = JsonDocument.Parse(message);
+                var root = document.RootElement;
+                if (root.TryGetProperty("type", out var typeElement) &&
+                    string.Equals(typeElement.GetString(), TypingStateMessageType, StringComparison.Ordinal) &&
+                    root.TryGetProperty("isTyping", out var typingElement))
+                {
+                    _isTypingInWebView = typingElement.GetBoolean();
+                }
+            }
+            catch (JsonException)
+            {
+                // ignore malformed messages
             }
         }
 
@@ -355,6 +431,11 @@ namespace StickyMiniWeb
         private async Task TriggerAutoRefreshAsync(CancellationToken token)
         {
             if (_autoRefreshInFlight)
+            {
+                return;
+            }
+
+            if (_isTypingInWebView)
             {
                 return;
             }
