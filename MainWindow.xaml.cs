@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
@@ -99,6 +100,7 @@ namespace StickyMiniWeb
                 Web.CoreWebView2.Settings.IsStatusBarEnabled = false;
                 Web.CoreWebView2.DocumentTitleChanged += CoreWebView2_DocumentTitleChanged;
                 Web.CoreWebView2.WebMessageReceived += CoreWebView2_WebMessageReceived;
+                Web.CoreWebView2.NewWindowRequested += CoreWebView2_NewWindowRequested;
                 await Web.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(TypingStateMonitoringScript);
 
                 NavigateToUrl(UrlBox.Text);
@@ -142,6 +144,30 @@ namespace StickyMiniWeb
             catch (JsonException)
             {
                 // ignore malformed messages
+            }
+        }
+
+        private void CoreWebView2_NewWindowRequested(object? sender, CoreWebView2NewWindowRequestedEventArgs e)
+        {
+            // Cancel the default behavior of opening in WebView2
+            e.Handled = true;
+
+            // Open the URL in the OS default browser
+            try
+            {
+                var uri = e.Uri;
+                if (!string.IsNullOrEmpty(uri))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = uri,
+                        UseShellExecute = true
+                    });
+                }
+            }
+            catch
+            {
+                // ignore errors when opening in default browser
             }
         }
 
