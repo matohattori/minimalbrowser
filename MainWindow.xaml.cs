@@ -156,7 +156,7 @@ namespace StickyMiniWeb
             try
             {
                 var uri = e.Uri;
-                if (!string.IsNullOrEmpty(uri))
+                if (!string.IsNullOrWhiteSpace(uri))
                 {
                     Process.Start(new ProcessStartInfo
                     {
@@ -165,9 +165,9 @@ namespace StickyMiniWeb
                     });
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // ignore errors when opening in default browser
+                MessageBox.Show($"リンクを開けませんでした: {ex.Message}", "エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 
